@@ -7,17 +7,17 @@ Add to your MDOQ PRAs script like
     "$ARGUMENT_STEP_FINAL-$ARGUMENT_COMPARISON_AHEAD")
         set -xe
         # do something
-        curl -s https://raw.githubusercontent.com/zero1limited/mdoq-pras/master/entrypoint | bash
+        curl -s https://raw.githubusercontent.com/zero1limited/mdoq-pras/refs/heads/master/entrypoint | bash
         ;;
     "$ARGUMENT_STEP_FINAL-$ARGUMENT_COMPARISON_IDENTICAL")
         set -xe
         # do something
-        curl -s https://raw.githubusercontent.com/zero1limited/mdoq-pras/master/entrypoint | bash
+        curl -s https://raw.githubusercontent.com/zero1limited/mdoq-pras/refs/heads/master/entrypoint | bash
         ;;
     "$ARGUMENT_STEP_FINAL-$ARGUMENT_COMPARISON_BEHIND")
         set -xe
         # do something
-        curl -s https://raw.githubusercontent.com/zero1limited/mdoq-pras/master/entrypoint | bash
+        curl -s https://raw.githubusercontent.com/zero1limited/mdoq-pras/refs/heads/master/entrypoint | bash
         ;;
     *)
 ```
@@ -26,7 +26,7 @@ Or if you want to run for all status
     "$ARGUMENT_STEP_FINAL-"*)
         set -xe
         # do something
-        curl -s https://raw.githubusercontent.com/zero1limited/mdoq-pras/master/entrypoint | bash
+        curl -s https://raw.githubusercontent.com/zero1limited/mdoq-pras/refs/heads/master/entrypoint | bash
         ;;
 ```
 
