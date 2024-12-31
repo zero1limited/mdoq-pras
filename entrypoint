@@ -1,2 +1,135 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
+# functions & common bits
+HAS_DB_CREDS=
+DB_HOST=
+DB_DATABASE=
+DB_USERNAME=
+DB_PASSWORD=
+setup_db_creds () {
+    if [ -f ./app/etc/env.php ]; then
+        DB_HOST=$(php -r '$env = include "./app/etc/env.php"; echo $env["db"]["connection"]["default"]["host"].PHP_EOL;');
+        DB_DATABASE=$(php -r '$env = include "./app/etc/env.php"; echo $env["db"]["connection"]["default"]["dbname"].PHP_EOL;');
+        DB_USERNAME=$(php -r '$env = include "./app/etc/env.php"; echo $env["db"]["connection"]["default"]["username"].PHP_EOL;');
+        DB_PASSWORD=$(php -r '$env = include "./app/etc/env.php"; echo $env["db"]["connection"]["default"]["password"].PHP_EOL;');
+    else
+        echo "[error] './app/etc/env.php' not found, please ensure you are running from Magento root."
+        exit 2
+    fi
+}
+
+# reduce/remove captcha threshold
+CAPTCHA_THRESHOLD="0.0"
+# will only work on MDOQ
+CAPTCHA_PUBLIC_KEY=6Lf3dMwgAAAAADj1nNGMR8232JBU-0z8NQYLdSBa
+CAPTCHA_PRIVATE_KEY=6Lf3dMwgAAAAAHwqAbn7nrR5jbbbaEZ1A-_X6F_5
+captcha () {
+    if [ -z "${SKIP_CAPTCHA}" ]; then
+        echo "[info] reducing captcha threshold (${CAPTCHA_THRESHOLD})"
+        mysql -h ${DB_HOST} -u ${DB_USERNAME} -p${DB_PASSWORD} ${DB_DATABASE} -e "delete from core_config_data where path = 'recaptcha_frontend/type_recaptcha_v3/score_threshold';"
+        php bin/magento config:set -- recaptcha_frontend/type_recaptcha_v3/score_threshold 0
+    else
+        echo "[info] skiping captcha"
+    fi
+}
+captchaHelp () {
+    echo "--skip-captcha              skips captcha functionality
+--captcha-threshold=        change the captcha threshold (default 0.0)
+--captcha-public-key=       change the public key used for captcha (default will work on MDOQ)
+--captcha-private-key=      change the private key used for captcha (default will work on MDOQ)"
+}
+
+# Admin security bits
+# # Allows some GI tests using URLs to run without issue
+# php bin/magento config:set admin/security/use_form_key 0
+adminSecurityAccountSharing () {
+    if [ -z "${SKIP_ADMIN_ACCOUNT_SHARING}" ]; then
+        echo "[info] enabling admin account sharing"
+        php bin/magento config:set admin/security/admin_account_sharing 1
+    else
+        echo "[info] skiping enabling admin account sharing"
+    fi
+}
+adminSecurityDisableFormKey () {
+    if [ -z "${SKIP_ADMIN_FORM_KEY}" ]; then
+    echo "[info] disabling admin form key"
+        php bin/magento config:set admin/security/use_form_key 0
+    else
+        echo "[info] skiping disabling admin form key"
+    fi
+}
+adminSecurityHelp () {
+    echo "--skip-account-sharing      skips enabling admin account sharing
+--skip-disable-form-key     skips disabling admin form key"
+}
+
+help () {
+    echo "ZERO1 Common PRA's for use on MDOQ"
+    echo "----------------------------------"
+    captchaHelp
+    adminSecurityHelp
+    echo "----------------------------------"
+    echo "see repo for more info: https://github.com/zero1limited/mdoq-pras"
+}
+
+################################################################
+#                   SCRIPT ENTRY                               #
+################################################################
+# Parse Arguments
+SKIP_CAPTCHA=
+SKIP_ADMIN_ACCOUNT_SHARING=
+SKIP_ADMIN_FORM_KEY=
+
+for i in "$@"; do
+    case $i in
+        --skip-captcha)
+        SKIP_CAPTCHA="1"
+        ;;
+        --captcha-threshold=*)
+        CAPTCHA_THRESHOLD="${i#*=}"
+        shift
+        ;;
+        --captcha-public-key=*)
+        CAPTCHA_PUBLIC_KEY="${i#*=}"
+        shift
+        ;;
+        --captcha-threshold=*)
+        CAPTCHA_PRIVATE_KEY="${i#*=}"
+        shift
+        ;;
+        --skip-account-sharing)
+        SKIP_ADMIN_ACCOUNT_SHARING="1"
+        ;;
+        --skip-disable-form-key)
+        SKIP_ADMIN_FORM_KEY="1"
+        ;;
+        --help|-h|"?")
+        help
+        exit 0
+        ;;
+        -v|--verbose)
+        set -x
+        ;;
+        -*|--*)
+        echo "unexpected argument: '${i}'"
+        echo "run '${0} --help' for more information"
+        exit 1;
+        ;;
+        *)
+        echo "unexpected value: '${i}'"
+        echo "run '${0} --help' for more information"
+        exit 1;
+        ;;
+    esac
+done
+
+# Setup common bits
+setup_db_creds
+
+# run what we want
+captcha
+adminSecurityAccountSharing
+adminSecurityDisableFormKey
+
+# finally flush cache
+php bin/magento cache:flush
